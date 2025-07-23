@@ -53,10 +53,10 @@ def retrieval_pipeline(query):
     retrieval_pipeline.add_component("retriever", PineconeEmbeddingRetriever(document_store=document_store))
     retrieval_pipeline.add_component("prompt_builder", PromptBuilder(prompt_template))
     retrieval_pipeline.add_component("prompt_to_messages", prompt_to_messages)
-    retrieval_pipeline.add_component("generator", HuggingFaceTGIChatGenerator(
-                                                        api_type="serverless_inference_api",
-                                                        api_params= {'model': 'mistralai/Mistral-7B-v0.1'}
-                                                        ))
+    # retrieval_pipeline.add_component("generator", HuggingFaceTGIChatGenerator(
+    #                                                     api_type="serverless_inference_api",
+    #                                                     api_params= {'model': 'mistralai/Mistral-7B-v0.1'}
+    #                                                     ))
 
     # Connecting the components in the pipeline
     retrieval_pipeline.connect("text_embedder", "retriever")
