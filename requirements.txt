@@ -5,5 +5,7 @@ uvicorn
 python-dotenv
 pathlib
 pypdf
+nltk>=3.9.1
+sentence-transformers
 
 -e .
