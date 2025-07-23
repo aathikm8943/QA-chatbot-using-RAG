@@ -55,8 +55,7 @@ def retrieval_pipeline(query):
     retrieval_pipeline.add_component("prompt_to_messages", prompt_to_messages)
     retrieval_pipeline.add_component("generator", HuggingFaceTGIChatGenerator(
                                                         api_type="serverless_inference_api",
-                                                        api_params= {'model': 'mistralai/Mistral-7B-v0.1'},
-                                                        token=Secret.from_token("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")
+                                                        api_params= {'model': 'mistralai/Mistral-7B-v0.1'}
                                                         ))
 
     # Connecting the components in the pipeline
