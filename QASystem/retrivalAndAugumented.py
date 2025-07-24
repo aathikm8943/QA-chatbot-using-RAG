@@ -15,19 +15,17 @@ from haystack import Pipeline
 from haystack.components.embedders import SentenceTransformersTextEmbedder
 from haystack_integrations.components.retrievers.pinecone import PineconeEmbeddingRetriever
 from haystack.components.builders import PromptBuilder
-from haystack.components.generators.chat import HuggingFaceTGIChatGenerator
-from haystack.utils.hf import HFGenerationAPIType
-from haystack.utils import Secret
-from haystack.components.generators.utils import ChatMessage
+from haystack.components.generators.chat import OpenAIChatGenerator
+from haystack.core.component import component
+from haystack.utils.auth import Secret
+from haystack.dataclasses import ChatMessage
 from QASystem.utils import pinecone_config
-from QASystem.ingestion import create_ingest_pipeline
-from pathlib import Path
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-os.environ['PINECONE_API_KEY'] = PINECONE_API_KEY
+# PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+# os.environ['PINECONE_API_KEY'] = PINECONE_API_KEY
 
 document_store = pinecone_config()
 
@@ -41,8 +39,13 @@ prompt_template = """Answer the following query based on the provided context. I
                      Answer: 
                   """
 
-def prompt_to_messages(prompt: str):
-    return [ChatMessage(role="user", content=prompt)]
+llm = OpenAIChatGenerator(Secret.from_env_var("OPENAI_API_KEY"), model="gpt-4o-mini")
+
+@component
+class PromptToChatConverter:
+    def run(self, prompt: str):
+        messages = [ChatMessage.from_user(prompt)]
+        return {"messages": messages}
 
 def retrieval_pipeline(query):
     # Initializing the pipeline
@@ -52,26 +55,33 @@ def retrieval_pipeline(query):
     retrieval_pipeline.add_component("text_embedder", SentenceTransformersTextEmbedder())
     retrieval_pipeline.add_component("retriever", PineconeEmbeddingRetriever(document_store=document_store))
     retrieval_pipeline.add_component("prompt_builder", PromptBuilder(prompt_template))
-    retrieval_pipeline.add_component("prompt_to_messages", prompt_to_messages)
+    retrieval_pipeline.add_component("prompt_to_chat_converter", PromptToChatConverter())
+    retrieval_pipeline.add_component("llm", llm)
     # retrieval_pipeline.add_component("generator", HuggingFaceTGIChatGenerator(
     #                                                     api_type="serverless_inference_api",
     #                                                     api_params= {'model': 'mistralai/Mistral-7B-v0.1'}
     #                                                     ))
 
+    print("Components added to the pipeline successfully.")
     # Connecting the components in the pipeline
     retrieval_pipeline.connect("text_embedder", "retriever")
     retrieval_pipeline.connect("retriever", "prompt_builder")
-    retrieval_pipeline.connect("prompt_builder", "prompt_to_messages")
-    retrieval_pipeline.connect("prompt_to_messages", "generator")
+    retrieval_pipeline.connect("prompt_builder", "prompt_to_chat_converter")
+    retrieval_pipeline.connect("prompt_to_chat_converter", "llm")
+    # retrieval_pipeline.connect("prompt_builder", "llm")
 
     query = query
 
     results = retrieval_pipeline.run({
-        "text_embedder": {"text": query},
-        "prompt_builder": {"query": query}
+        "text_embedder": {"text": query}
     })
 
-    return results["generator"]["text"]
+    # results = retrieval_pipeline.run({
+    #     "text_embedder": {"text": query},
+    #     "llm": {"query": query}
+    # })
+
+    return results["llm"]["replies"][0]
 
 if __name__ == "__main__":    
     # Ensure the document store is configured before running the ingestion pipeline
